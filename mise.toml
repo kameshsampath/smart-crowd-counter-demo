@@ -1,0 +1,18 @@
+[tools]
+node = "24"
+
+[tasks.dev]
+description = "Start the dev server"
+run = "npm run dev"
+
+[tasks.build]
+description = "Build for production"
+run = "npm run build"
+
+[tasks.reset]
+description = "Clear stage files for a fresh demo"
+run = "node scripts/reset-demo.mjs"
+
+[tasks.lint]
+description = "Run ESLint"
+run = "npm run lint"
