@@ -12,11 +12,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 1. **Data layer lives in CROWD_COUNTER_DB.CONFERENCES** — set SNOWFLAKE_DATABASE and SNOWFLAKE_SCHEMA as environment_variables in app.yml (data DB ≠ deploy DB).
 
-2. **Proxy stage images via same-origin /api/stage-image.** Runtime App CSP is `default-src 'self'` — presigned URLs and any external resources must be proxied through same-origin API routes.
+2. **Proxy stage images via `GET`, not `GET_PRESIGNED_URL`.** Files on internal stages are encrypted at rest by Snowflake. `GET_PRESIGNED_URL` returns a raw S3 URL that serves the encrypted bytes — not a usable image. Use the SQL `GET '@STAGE/file' 'file:///tmp/dir'` command instead, which downloads and decrypts the file through Snowflake. The `/api/stage-image` route GETs to a temp directory, reads the decrypted file, and serves it as a same-origin response (required by App Runtime CSP `default-src 'self'`).
 
 3. **File extensions are case-insensitive.** Cameras produce `.JPG`, `.JPEG`, `.PNG` etc. Always normalize to lowercase before comparing. The view SQL uses `LOWER(RELATIVE_PATH)`, the upload route uses `.toLowerCase()`, and the client-side filter should avoid regex in favor of explicit extension checks (Turbopack's SWC parser can fail on certain regex patterns in arrow functions).
 
-4. **AI analysis is slow — always show progress.** `AI_COMPLETE` in the `SMART_CROWD_COUNTER` view takes 15-30s per image. The `/api/images` endpoint uses `querySnowflakeLongRunning`. The UI must show an analyzing banner with elapsed time and rotating tips while waiting for results. Never leave the user staring at a blank or stale screen.
+4. **Every slow operation needs visible progress.** Never leave the user staring at a blank or stale screen. Specifically:
+   - **Upload**: Show an "Uploading N photos…" banner while files transfer to the stage.
+   - **AI analysis**: `AI_COMPLETE` takes 15-30s per image. Show an analyzing banner with elapsed time and rotating tips. Use `querySnowflakeLongRunning` for the `/api/images` endpoint. Bridge upload→analyze seamlessly (use `refetchQueries` not `invalidateQueries` so the `await` holds until results arrive).
+   - **Reset/Clear**: Show a "Clearing…" banner while `REMOVE` and `ALTER STAGE REFRESH` run.
+   - **General pattern**: Track distinct `isUploading`/`isAnalyzing`/`isResetting` states so the UI always reflects what's happening. Use `await refetchQueries()` (not `invalidateQueries`) after mutations so state transitions are seamless.
 
 # Turbopack/SWC Constraints
 
