@@ -1,55 +1,50 @@
 # Smart Crowd Counter
 
-An AI-powered conference photo analysis app built on [Snowflake App Runtime](https://docs.snowflake.com/en/developer-guide/snowflake-apps/about-snowflake-apps) using [Cortex AI](https://docs.snowflake.com/en/guides-overview-ai-features). Upload conference session photos and get instant crowd analytics — attendee counts, raised-hand detection, engagement percentages, and AI-generated captions.
+AI-powered conference photo analysis app built on Snowflake App Runtime. Upload session photos and get real-time attendee counts, raised-hand detection, engagement metrics, and AI-generated captions — all powered by Snowflake Cortex AI (Claude 4 Sonnet).
 
-Built with [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) from a single prompt.
+> [!NOTE]
+> This app was generated from [`PROMPT.md`](PROMPT.md) using the `snowflake-apps` skill in [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code).
 
 ## How it works
 
-1. Upload conference session photos (JPG/PNG) via drag-and-drop
-2. Cortex AI (`claude-4-sonnet`) analyzes each image to count attendees, detect raised hands, and generate a caption
-3. Results display in an interactive dashboard with summary stats, a sortable table, and a detail panel with a donut chart
+1. **Upload** conference session photos (JPG/PNG) via drag-and-drop or file picker
+2. **Cortex AI** analyzes each image using `AI_COMPLETE` with `TO_FILE()` to count attendees, detect raised hands, calculate engagement percentage, and generate a caption
+3. **Dashboard** displays summary stats, an interactive table, and a detail panel with the image, caption, metrics, and a donut chart
 
-## Prerequisites
+## Data layer
 
-- [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) configured with a connection
-- [mise](https://mise.jdx.dev/) task runner
-- [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) desktop IDE
+All data lives in `CROWD_COUNTER_DB.CONFERENCES`:
 
-## Quick start
+- **Stage** `SNAPS` — internal stage with directory table for uploaded photos
+- **View** `SMART_CROWD_COUNTER` — reads `DIRECTORY('@SNAPS')`, filters image extensions, calls `AI_COMPLETE(claude-4-sonnet)` twice per image (once for JSON metrics via `TRY_PARSE_JSON`, once for a caption)
 
-```bash
-# 1. Clone the get-started branch (prompt + infra scripts only)
-git clone -b get-started https://github.com/kameshsampath/smart-crowd-counter-demo.git
-cd smart-crowd-counter-demo
+> [!IMPORTANT]
+> Run `scripts/setup-infra.sql` to create the database, schema, stage, and view before running or deploying the app.
 
-# 2. Create Snowflake infrastructure (database, schema, stage, view)
-mise run setup
-```
+## API routes
 
-## Build App
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/upload` | POST | Multipart upload → PUT to stage |
+| `/api/images` | GET | SELECT from `SMART_CROWD_COUNTER` view (long-running) |
+| `/api/file-count` | GET | COUNT from `DIRECTORY('@SNAPS')` |
+| `/api/stage-image?path=` | GET | Proxy stage image via `GET` command (decrypts) |
+| `/api/reset` | POST | `REMOVE` stage + `ALTER STAGE REFRESH` |
 
-Open Snowflake Coco Desktop Chat session and say:
-
-```text
-build @PROMPT.md
-```
-
-## Snowflake objects
-
-| Object | Description |
-|--------|-------------|
-| `CROWD_COUNTER_DB` | Database |
-| `CROWD_COUNTER_DB.CONFERENCES` | Schema |
-| `@CROWD_COUNTER_DB.CONFERENCES.SNAPS` | Internal stage with directory table |
-| `CROWD_COUNTER_DB.CONFERENCES.SMART_CROWD_COUNTER` | View — runs AI_COMPLETE on staged images |
-
-## Clean up
+## Local development
 
 ```bash
-# 3. Teardown when done
-mise run teardown
+npm install
+npm run dev
 ```
-## License
 
-[Apache License 2.0](LICENSE)
+> [!TIP]
+> Requires a configured Snowflake CLI connection (`~/.snowflake/config.toml`). Use `SNOWFLAKE_CONNECTION_NAME=myconn npm run dev` to select a specific connection.
+
+## Deploy
+
+```bash
+snow app deploy
+```
+
+Deploys to Snowflake App Runtime as `SMART_CROWD_COUNTER` in `SNOWFLAKE_APPS.PUBLIC`.
