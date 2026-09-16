@@ -1,0 +1,25 @@
+[tools]
+node = "24"
+
+[tasks.setup]
+description = "Create Snowflake infra (DB, schema, stage, table, view)"
+run = "snow sql -f scripts/setup-infra.sql"
+
+[tasks.dev]
+description = "Start the dev server"
+run = "npm run dev"
+
+[tasks.build]
+description = "Build for production"
+run = "npm run build"
+
+[tasks.reset]
+description = "Clear stage files for a fresh demo"
+run = """
+snow sql -q "REMOVE @CROWD_COUNTER_DB.CONFERENCES.SNAPS"
+snow sql -q "ALTER STAGE CROWD_COUNTER_DB.CONFERENCES.SNAPS REFRESH"
+"""
+
+[tasks.teardown]
+description = "Drop all demo Snowflake objects"
+run = "snow sql -f scripts/teardown-infra.sql"
