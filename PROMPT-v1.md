@@ -1,0 +1,11 @@
+/snowflake-apps Build a "Smart Crowd Counter" — an AI-powered conference photo analysis app using Snowflake Cortex AI. Deploy when done.
+
+Users upload conference session photos (JPG/JPEG/PNG, case-insensitive) via drag-and-drop. Cortex AI estimates attendees and raised hands, calculates hands-up percentage, and generates a caption. Label results as AI estimates; totals across photos are not unique attendees. Show unavailable estimates distinctly from zero.
+
+Data layer (CROWD_COUNTER_DB.CONFERENCES): Stage SNAPS with directory table and SNOWFLAKE_SSE encryption. View SMART_CROWD_COUNTER reads DIRECTORY('@SNAPS'), filters image extensions, calls AI_COMPLETE(claude-4-sonnet) with TO_FILE() — once for JSON {total_attendees, raised_hands, percentage_with_hands_up} via TRY_PARSE_JSON and safe numeric casts, once for a caption. Request bare JSON; if parsing fails, strip only an enclosing Markdown code fence and retry. Unknown counts and undefined percentages stay null. Validate Claude image limits (3.75 MB, 8000px per dimension).
+
+API: POST /api/upload (validated multipart → PUT to stage), GET /api/images (long-running SELECT from view), GET /api/file-count (image COUNT from DIRECTORY), GET /api/stage-image?path= (same-origin decrypted proxy using Snowflake GET), POST /api/reset (clear stage after confirmation). Set data database/schema explicitly in app.yml; they differ from deployment storage. Avoid unnecessary AI re-analysis on window focus.
+
+UI: Photo-first conference dashboard. Warm off-white canvas, charcoal text, teal accents, crisp typography, generous whitespace, subtle dividers; no nested cards. Compact KPI strip above a selectable thumbnail table. Large selected photo and caption beside metrics and a labeled hands-up donut. Prominent drop zone; polished empty states, skeletons, inline errors, upload progress, timed analysis status, and clearing status with seamless transitions. Responsive layout, accessible contrast and keyboard focus.
+
+Polish: Light/dark toggle with warm-light and charcoal-dark palettes. Subtle selection/result transitions respecting reduced motion. Collapsible "Under the hood" drawer with copyable analysis SQL pattern and selected photo's returned result JSON, excluding credentials and connection details. No maps, extra charts, or photo comparison in this base iteration.

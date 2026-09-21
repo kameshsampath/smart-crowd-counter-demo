@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 *.log
 .cortex
+/output/
+/test-results/
+/playwright-report/
+smart-crowd-counter/

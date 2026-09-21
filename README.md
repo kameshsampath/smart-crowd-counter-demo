@@ -1,55 +1,120 @@
 # Smart Crowd Counter
 
-An AI-powered conference photo analysis app built on [Snowflake App Runtime](https://docs.snowflake.com/en/developer-guide/snowflake-apps/about-snowflake-apps) using [Cortex AI](https://docs.snowflake.com/en/guides-overview-ai-features). Upload conference session photos and get instant crowd analytics — attendee counts, raised-hand detection, engagement percentages, and AI-generated captions.
+A prompt-first demo for building an AI-powered conference photo app with [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code), [Snowflake App Runtime](https://docs.snowflake.com/en/developer-guide/snowflake-apps/about-snowflake-apps), and [Cortex AI](https://docs.snowflake.com/en/guides-overview-ai-features).
 
-Built with [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) from a single prompt.
-
-## How it works
-
-1. Upload conference session photos (JPG/PNG) via drag-and-drop
-2. Cortex AI (`claude-4-sonnet`) analyzes each image to count attendees, detect raised hands, and generate a caption
-3. Results display in an interactive dashboard with summary stats, a sortable table, and a detail panel with a donut chart
+The `get-started` branch contains prompts, agent instructions, and infrastructure scripts, not a prebuilt application. Generate the app in `smart-crowd-counter/`, which is excluded from version control. Start with v1, then optionally choose one v2 extension.
 
 ## Prerequisites
 
-- [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) configured with a connection
-- [mise](https://mise.jdx.dev/) task runner
-- [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) desktop IDE
+- Cortex Code Desktop with access to your target Snowflake account.
+- Snowflake CLI (`snow`) configured with a named connection and access to App Runtime and Cortex AI.
+- Node.js and npm for the generated app. The optional [mise](https://mise.jdx.dev/) configuration selects Node.js 24.
+- Only for the Postgres v2 option: access to an existing Snowflake Postgres instance or permission and budget to create one. No Postgres setup or checks are needed for v1 or the Snowflake-tables option.
 
-## Quick start
+**UI recommendation:** Select **OpenAI GPT 6 Astra** (`openai-gpt-6-astra`) in Cortex Code for a stunning, polished UI. This is the coding model used to generate the app; photo analysis still uses the `claude-4-sonnet` Cortex model specified in the prompts.
 
-```bash
-# 1. Clone the get-started branch (prompt + infra scripts only)
+## Quick Start
+
+```sh
 git clone -b get-started https://github.com/kameshsampath/smart-crowd-counter-demo.git
 cd smart-crowd-counter-demo
-
-# 2. Create Snowflake infrastructure (database, schema, stage, view)
-mise run setup
 ```
 
-## Build App
+Open this folder in Cortex Code Desktop. Replace `YOUR_CONNECTION` in the chat requests below with your configured Snowflake connection name. Ask Cortex Code to preserve the prompt repository and generate source in the ignored subfolder.
 
-Open Snowflake Coco Desktop Chat session and say:
+## Prompt Sequence
 
 ```text
-build @PROMPT.md
+PROMPT-v1.md
+    -> PROMPT-v2-snowflake.md       (Snowflake location table)
+    OR
+    -> PROMPT-v2-postgres-map.md    (Postgres location table)
 ```
 
-## Snowflake objects
+### Step 1: Build And Deploy V1
 
-| Object | Description |
-|--------|-------------|
-| `CROWD_COUNTER_DB` | Database |
-| `CROWD_COUNTER_DB.CONFERENCES` | Schema |
-| `@CROWD_COUNTER_DB.CONFERENCES.SNAPS` | Internal stage with directory table |
-| `CROWD_COUNTER_DB.CONFERENCES.SMART_CROWD_COUNTER` | View — runs AI_COMPLETE on staged images |
+Use [PROMPT-v1.md](PROMPT-v1.md) in a Cortex Code chat:
 
-## Clean up
-
-```bash
-# 3. Teardown when done
-mise run teardown
+```text
+Use Snowflake connection YOUR_CONNECTION to build @PROMPT-v1.md.
+Generate the app in smart-crowd-counter/, preserve the repository files,
+and do not commit generated code. Verify and deploy when done.
 ```
+
+V1 is deliberately map-free. It includes photo uploads, estimated attendee and raised-hand counts, captions, a photo-first dashboard, a hands-up donut, light/dark themes, visible progress, and an Under the hood drawer with SQL and result JSON. Verify the deployed v1 before extending it.
+
+### Step 2: Choose One V2
+
+Both options add a session map from photo EXIF GPS and link map pins to the selected photo. Photos without GPS remain usable. Choose one storage approach for the completed v1 app, not both prompts in sequence.
+
+**Option A: Snowflake tables only**
+
+Use [PROMPT-v2-snowflake.md](PROMPT-v2-snowflake.md):
+
+```text
+Use Snowflake connection YOUR_CONNECTION to extend smart-crowd-counter/
+using @PROMPT-v2-snowflake.md. Keep location metadata in Snowflake tables,
+not Postgres. Preserve v1 features, verify, and deploy.
+```
+
+GPS metadata lives in `CROWD_COUNTER_DB.CONFERENCES.SESSION_LOCATIONS` and is left-joined to analysis results. Photos remain in the Snowflake stage. No Postgres instance, credentials, dependencies, or connectivity checks are required.
+
+**Option B: Postgres tables for GPS metadata**
+
+Use [PROMPT-v2-postgres-map.md](PROMPT-v2-postgres-map.md):
+
+```text
+Use Snowflake connection YOUR_CONNECTION to extend smart-crowd-counter/
+using @PROMPT-v2-postgres-map.md. Use Snowflake Postgres for GPS metadata
+only. Ask whether to reuse or create an instance; obtain approval for
+billable resources and networking. Preserve v1 features, verify, and deploy.
+```
+
+GPS metadata lives in Postgres `session_locations`, keyed by fully qualified stage and exact generated photo path. Photos and the Cortex view stay in Snowflake unchanged; the server merges location metadata without storing analysis results in Postgres. This option requires secure secrets, verified TLS, separate Postgres ingress and app egress, and verification from the deployed runtime. Follow the conditional Postgres rules in [AGENTS.md](AGENTS.md).
+
+## Run And Verify The Generated App
+
+These commands apply **after** Cortex Code has generated the Node.js app and its lockfile:
+
+```sh
+cd smart-crowd-counter
+npm ci
+SNOWFLAKE_CONNECTION_NAME=YOUR_CONNECTION SNOWFLAKE_DATABASE=CROWD_COUNTER_DB SNOWFLAKE_SCHEMA=CONFERENCES npm run dev
+```
+
+Use the actual URL printed by the dev server. For the Postgres variant, also follow the generated app's README for secure local credential and CA configuration. Never put passwords in chat or source files.
+
+From the generated app directory, verify before deployment:
+
+```sh
+npm test
+npm run build
+snow app validate --connection YOUR_CONNECTION
+snow app deploy --connection YOUR_CONNECTION
+```
+
+Review and confirm the generated deployment manifest's account, database, schema, warehouse, and integrations. Deployment storage can differ from the data database: preserve `SNOWFLAKE_DATABASE=CROWD_COUNTER_DB` and `SNOWFLAKE_SCHEMA=CONFERENCES`. Do not assume another demo's account-specific warehouse or service settings exist in your account.
+
+## Data And Safety
+
+- Photos live in `@CROWD_COUNTER_DB.CONFERENCES.SNAPS`, an internal stage with a directory table and `SNOWFLAKE_SSE` encryption.
+- `CROWD_COUNTER_DB.CONFERENCES.SMART_CROWD_COUNTER` runs Cortex image analysis. Each photo uses separate estimate and caption calls, incurs costs, and can take tens of seconds.
+- JPG, JPEG, and PNG extensions are case-insensitive. Validate the Claude image limits: 3.75 MB and 8000 pixels per dimension.
+- Counts are AI estimates, not attendance records. Totals across photos are not unique attendees; hands-up percentage is not a general engagement score. Unavailable estimates must remain distinct from zero.
+- This is a shared demo. App users see the same photo library, and confirmed reset affects all users. Restrict access and obtain approval before destructive smoke tests.
+
+## Infrastructure And Cleanup
+
+Let the build workflow inspect and provision what it needs. For manual v1 setup, first review `scripts/setup-infra.sql`: it creates missing database/schema/stage objects and replaces the analysis view. It does not convert the encryption of an existing stage.
+
+```sh
+snow sql --connection YOUR_CONNECTION -f scripts/setup-infra.sql
+```
+
+Root `mise` tasks use the CLI's selected/default connection. The existing `mise run dev` and `mise run build` tasks assume a root-level generated app; for the recommended subfolder layout, use the commands above instead. `mise run reset` is stage-only and is not a complete v2 metadata reset. Prefer the generated app's confirmed reset and recovery workflow.
+
+Review `scripts/teardown-infra.sql` before running any teardown: it is destructive and does not substitute for removing deployed app services or Postgres resources. For the Postgres variant, follow the generated cleanup instructions separately. Suspending Postgres stops compute charges, but storage charges continue. Never drop a reused instance or another application's metadata.
+
 ## License
 
 [Apache License 2.0](LICENSE)
