@@ -23,3 +23,7 @@ snow sql -q "ALTER STAGE CROWD_COUNTER_DB.CONFERENCES.SNAPS REFRESH"
 [tasks.teardown]
 description = "Drop all demo Snowflake objects"
 run = "snow sql -f scripts/teardown-infra.sql"
+
+[tasks.submodule-update]
+description = "Pull latest smart-crowd-counter from tracked branch"
+run = "git submodule update --remote --merge smart-crowd-counter"

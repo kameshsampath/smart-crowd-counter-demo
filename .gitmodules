@@ -1,0 +1,4 @@
+[submodule "smart-crowd-counter"]
+	path = smart-crowd-counter
+	url = https://github.com/kameshsampath/smart-crowd-counter.git
+	branch = main

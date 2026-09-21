@@ -2,7 +2,7 @@
 
 A prompt-first demo for building an AI-powered conference photo app with [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code), [Snowflake App Runtime](https://docs.snowflake.com/en/developer-guide/snowflake-apps/about-snowflake-apps), and [Cortex AI](https://docs.snowflake.com/en/guides-overview-ai-features).
 
-The `get-started` branch contains prompts, agent instructions, and infrastructure scripts, not a prebuilt application. Generate the app in `smart-crowd-counter/`, which is excluded from version control. Start with v1, then optionally choose one v2 extension.
+The `get-started` branch contains prompts, agent instructions, and infrastructure scripts. `smart-crowd-counter/` is a git submodule tracking a prebuilt reference app for a quick check; regenerate your own app there via the prompt sequence, or reuse the pinned submodule as-is. Start with v1, then optionally choose one v2 extension.
 
 ## Prerequisites
 
@@ -13,7 +13,26 @@ The `get-started` branch contains prompts, agent instructions, and infrastructur
 
 **UI recommendation:** Select **OpenAI GPT 6 Astra** (`openai-gpt-6-astra`) in Cortex Code for a stunning, polished UI. This is the coding model used to generate the app; photo analysis still uses the `claude-4-sonnet` Cortex model specified in the prompts.
 
-## Quick Start
+## Quick Check (Prebuilt App)
+
+`smart-crowd-counter/` is a git submodule pointing at the [smart-crowd-counter](https://github.com/kameshsampath/smart-crowd-counter) repo (tracking its `main` branch). Use this path to deploy a working reference app without running the prompt sequence yourself:
+
+```sh
+git clone --recurse-submodules -b get-started https://github.com/kameshsampath/smart-crowd-counter-demo.git
+cd smart-crowd-counter-demo/smart-crowd-counter
+```
+
+If you already cloned without `--recurse-submodules`, run `git submodule update --init` from the repo root first.
+
+```sh
+npm ci
+snow app validate --connection YOUR_CONNECTION
+snow app deploy --connection YOUR_CONNECTION
+```
+
+Review `app.yml` first: it ships with placeholder/example values (e.g. `PGHOST`) that must match your account's resources before deploying. To pull in the latest reference app later, run `mise run submodule-update` (or `git submodule update --remote --merge smart-crowd-counter`).
+
+## Quick Start (Generate Your Own)
 
 ```sh
 git clone -b get-started https://github.com/kameshsampath/smart-crowd-counter-demo.git
